@@ -69,6 +69,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [rawBase64, setRawBase64] = useState<string | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   const ratioMeta = useMemo(() => RATIOS.find((r) => r.ratio === aspectRatio) || RATIOS[0], [aspectRatio])
   const resolutionText = useMemo(() => {
@@ -159,50 +160,65 @@ export default function App() {
 
   return (
     <div className="page">
-      <div className="container">
-        <header className="header">
+      <div className="topBar">
+        <div className="topBarLeft">
           <h1>Gemini 生图</h1>
-          <div className="subtitle">可配置 API URL / Key，支持比例与分辨率档位</div>
-        </header>
+        </div>
+        <div className="topBarRight">
+          <button className="settingsBtn" onClick={() => setShowSettings(true)}>
+            ⚙️ 设置
+          </button>
+        </div>
+      </div>
 
-        <section className="card">
-          <div className="cardTitle">连接配置</div>
+      {showSettings && (
+        <div className="modal" onClick={() => setShowSettings(false)}>
+          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <h2>API 设置</h2>
+              <button className="closeBtn" onClick={() => setShowSettings(false)}>✕</button>
+            </div>
+            <div className="modalBody">
+              <label className="field">
+                <div className="label">API Base URL</div>
+                <input value={apiBaseUrl} onChange={(e) => setApiBaseUrl(e.target.value)} placeholder="https://api.vectorengine.ai" />
+              </label>
 
-          <div className="grid2">
-            <label className="field">
-              <div className="label">API Base URL</div>
-              <input value={apiBaseUrl} onChange={(e) => setApiBaseUrl(e.target.value)} placeholder="https://api.vectorengine.ai" />
-            </label>
+              <label className="field">
+                <div className="label">API Path</div>
+                <input
+                  value={apiPath}
+                  onChange={(e) => setApiPath(e.target.value)}
+                  placeholder="/v1beta/models/...:generateContent"
+                />
+              </label>
 
-            <label className="field">
-              <div className="label">API Path</div>
-              <input
-                value={apiPath}
-                onChange={(e) => setApiPath(e.target.value)}
-                placeholder="/v1beta/models/...:generateContent"
-              />
-            </label>
+              <label className="field">
+                <div className="label">API Key</div>
+                <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." />
+              </label>
 
-            <label className="field">
-              <div className="label">API Key</div>
-              <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." />
-            </label>
+              <label className="field">
+                <div className="label">鉴权 Header</div>
+                <select value={authHeader} onChange={(e) => setAuthHeader(e.target.value as AuthHeaderMode)}>
+                  <option value="x-goog-api-key">x-goog-api-key</option>
+                  <option value="authorization">Authorization</option>
+                </select>
+              </label>
 
-            <label className="field">
-              <div className="label">鉴权 Header</div>
-              <select value={authHeader} onChange={(e) => setAuthHeader(e.target.value as AuthHeaderMode)}>
-                <option value="x-goog-api-key">x-goog-api-key</option>
-                <option value="authorization">Authorization</option>
-              </select>
-            </label>
+              <div className="hint">
+                提示：配置会保存在浏览器本地（localStorage）。你也可以在部署后通过修改 <code>config.js</code> 提供默认值。
+              </div>
+            </div>
+            <div className="modalFooter">
+              <button className="primary" onClick={() => setShowSettings(false)}>确定</button>
+            </div>
           </div>
+        </div>
+      )}
 
-          <div className="hint">
-            提示：配置会保存在浏览器本地（localStorage）。你也可以在部署后通过修改 <code>config.js</code> 提供默认值。
-          </div>
-        </section>
-
-        <section className="card">
+      <div className="mainContent">
+        <section className="leftPanel">
           <div className="cardTitle">生成参数</div>
 
           <div className="field">
@@ -264,7 +280,7 @@ export default function App() {
           {error ? <div className="error">{error}</div> : null}
         </section>
 
-        <section className="card">
+        <section className="rightPanel">
           <div className="cardTitle">结果预览</div>
           {imgUrl ? (
             <div className="preview">
@@ -288,8 +304,6 @@ export default function App() {
             <div className="empty">还没有生成图片</div>
           )}
         </section>
-
-        <footer className="footer">Build 输出为纯静态文件，可直接部署到腾讯 EdgeOne。</footer>
       </div>
     </div>
   )

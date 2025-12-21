@@ -31,36 +31,82 @@ body {
 }
 
 .page {
-  min-height: 100%;
-  padding: 28px 14px 40px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.container {
-  max-width: 980px;
-  margin: 0 auto;
+.topBar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.header {
-  margin-bottom: 18px;
-}
-
-h1 {
-  font-size: 28px;
-  margin: 0 0 6px 0;
+.topBarLeft h1 {
+  font-size: 24px;
+  margin: 0;
   letter-spacing: 0.2px;
 }
 
-.subtitle {
-  color: var(--muted);
-  font-size: 14px;
+.topBarRight {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-.card {
+.settingsBtn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.settingsBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+.mainContent {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .mainContent {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.leftPanel,
+.rightPanel {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px;
-  margin: 14px 0;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.leftPanel {
+  min-height: 400px;
+}
+
+.rightPanel {
+  min-height: 400px;
 }
 
 .cardTitle {
@@ -79,6 +125,10 @@ h1 {
   .grid2 {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.field {
+  margin-bottom: 10px;
 }
 
 .field .label {
@@ -199,11 +249,6 @@ button.primary {
   font-size: 13px;
 }
 
-.footer {
-  margin-top: 14px;
-  color: var(--muted2);
-  font-size: 12px;
-}
 
 .modeToggle {
   display: flex;
@@ -261,4 +306,92 @@ input[type="file"] {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: rgba(255, 255, 255, 0.9);
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modalHeader h2 {
+  font-size: 20px;
+  margin: 0;
+  color: var(--text);
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.modalBody {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modalBody .field {
+  margin-bottom: 16px;
+}
+
+.modalBody .field:last-child {
+  margin-bottom: 0;
+}
+
+.modalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modalFooter button {
+  min-width: 100px;
 }
