@@ -282,7 +282,12 @@ export default function App() {
 
         <section className="rightPanel">
           <div className="cardTitle">结果预览</div>
-          {imgUrl ? (
+          {busy ? (
+            <div className="loadingContainer">
+              <div className="spinner" />
+              <div>正在生成中...</div>
+            </div>
+          ) : imgUrl ? (
             <div className="preview">
               <img src={imgUrl} alt="generated" />
               <div className="meta">
