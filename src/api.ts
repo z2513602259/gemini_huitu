@@ -8,10 +8,10 @@ export type GenerateImageRequest = {
   prompt: string
   aspectRatio: string
   imageSize?: '1K' | '2K' | '4K'
-  inputImage?: {
+  inputImages?: Array<{
     mimeType: string
     base64Data: string
-  }
+  }>
 }
 
 export type GeneratedImage = {
@@ -67,12 +67,14 @@ export async function generateImage(req: GenerateImageRequest): Promise<Generate
 
   const parts: any[] = [{ text: req.prompt }]
   
-  if (req.inputImage) {
-    parts.push({
-      inline_data: {
-        mime_type: req.inputImage.mimeType,
-        data: req.inputImage.base64Data
-      }
+  if (req.inputImages && req.inputImages.length > 0) {
+    req.inputImages.forEach(img => {
+      parts.push({
+        inline_data: {
+          mime_type: img.mimeType,
+          data: img.base64Data
+        }
+      })
     })
   }
 

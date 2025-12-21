@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { generateImage, type AuthHeaderMode } from './api'
 
 type SizeOption = {
@@ -53,6 +53,7 @@ function readInitialConfig() {
 
 export default function App() {
   const initial = useMemo(() => readInitialConfig(), [])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [apiBaseUrl, setApiBaseUrl] = useState(initial.apiBaseUrl)
   const [apiPath, setApiPath] = useState(initial.apiPath)
@@ -63,13 +64,14 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [imageSize, setImageSize] = useState<SizeOption>(SIZE_OPTIONS[2])
 
-  const [inputImage, setInputImage] = useState<{ mimeType: string; base64Data: string; previewUrl: string } | null>(null)
+  const [inputImages, setInputImages] = useState<Array<{ mimeType: string; base64Data: string; previewUrl: string; fileName: string }>>([])
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [rawBase64, setRawBase64] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showImageModal, setShowImageModal] = useState(false)
 
   const ratioMeta = useMemo(() => RATIOS.find((r) => r.ratio === aspectRatio) || RATIOS[0], [aspectRatio])
   const resolutionText = useMemo(() => {
@@ -90,29 +92,32 @@ export default function App() {
   }
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
-    if (!file.type.startsWith('image/')) {
-      setError('请选择图片文件')
-      return
-    }
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith('image/')) {
+        setError('请选择图片文件')
+        return
+      }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const base64 = reader.result as string
-      const base64Data = base64.split(',')[1]
-      setInputImage({
-        mimeType: file.type,
-        base64Data,
-        previewUrl: base64
-      })
-      setError(null)
-    }
-    reader.onerror = () => {
-      setError('读取图片失败')
-    }
-    reader.readAsDataURL(file)
+      const reader = new FileReader()
+      reader.onload = () => {
+        const base64 = reader.result as string
+        const base64Data = base64.split(',')[1]
+        setInputImages(prev => [...prev, {
+          mimeType: file.type,
+          base64Data,
+          previewUrl: base64,
+          fileName: file.name
+        }])
+        setError(null)
+      }
+      reader.onerror = () => {
+        setError('读取图片失败')
+      }
+      reader.readAsDataURL(file)
+    })
   }
 
   async function onGenerate() {
@@ -131,10 +136,10 @@ export default function App() {
         prompt,
         aspectRatio,
         imageSize: imageSize.imageSize,
-        inputImage: inputImage ? {
-          mimeType: inputImage.mimeType,
-          base64Data: inputImage.base64Data
-        } : undefined
+        inputImages: inputImages.length > 0 ? inputImages.map(img => ({
+          mimeType: img.mimeType,
+          base64Data: img.base64Data
+        })) : undefined
       })
 
       const url = `data:${img.mimeType};base64,${img.base64Data}`
@@ -217,24 +222,59 @@ export default function App() {
         </div>
       )}
 
+      {showImageModal && imgUrl && (
+        <div className="imageModal" onClick={() => setShowImageModal(false)}>
+          <button className="imageModalClose" onClick={() => setShowImageModal(false)}>✕</button>
+          <img src={imgUrl} alt="Full size" onClick={(e) => e.stopPropagation()} />
+          <div className="imageModalToolbar" onClick={(e) => e.stopPropagation()}>
+            <button className="primary" onClick={download}>下载原图</button>
+          </div>
+        </div>
+      )}
+
       <div className="mainContent">
         <section className="leftPanel">
           <div className="cardTitle">生成参数</div>
 
           <div className="field">
-            <div className="label">参考图片（可选，上传后自动启用图生图）</div>
-            <input type="file" accept="image/*" onChange={handleImageUpload} />
-            {inputImage && (
-              <div className="uploadPreview">
-                <img src={inputImage.previewUrl} alt="input" />
-                <button onClick={() => setInputImage(null)} className="removeBtn">移除</button>
+            <div className="label">参考图片（可选，支持多张）</div>
+            <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} style={{display: 'none'}} />
+            <div
+              className="fileDropZone"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const files = e.dataTransfer.files
+                if (files && files.length > 0) {
+                  const event = { target: { files } } as any
+                  handleImageUpload(event)
+                }
+              }}
+            >
+              <div>点击选择文件或拖拽文件到此处</div>
+            </div>
+            {inputImages.length > 0 && (
+              <div className="imagesGrid">
+                {inputImages.map((img, index) => (
+                  <div key={index} className="imageItem">
+                    <img src={img.previewUrl} alt={img.fileName} />
+                    <div className="fileName">{img.fileName}</div>
+                    <button onClick={() => {
+                      setInputImages(prev => prev.filter((_, i) => i !== index))
+                      if (inputImages.length === 1 && fileInputRef.current) {
+                        fileInputRef.current.value = ''
+                      }
+                    }} className="removeBtn">✕</button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
           <label className="field">
             <div className="label">提示词</div>
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={4} />
+            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={6} />
           </label>
 
           <div className="grid2">
@@ -270,7 +310,7 @@ export default function App() {
               onClick={onGenerate} 
               disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt}
             >
-              {busy ? (inputImage ? '生成中（图生图）…' : '生成中…') : (inputImage ? '生成图片（图生图）' : '生成图片')}
+              {busy ? (inputImages.length > 0 ? '生成中（图生图）…' : '生成中…') : (inputImages.length > 0 ? '生成图片（图生图）' : '生成图片')}
             </button>
             <button onClick={download} disabled={!imgUrl}>
               下载
@@ -289,7 +329,7 @@ export default function App() {
             </div>
           ) : imgUrl ? (
             <div className="preview">
-              <img src={imgUrl} alt="generated" />
+              <img src={imgUrl} alt="generated" onClick={() => setShowImageModal(true)} title="点击查看大图" />
               <div className="meta">
                 <div>
                   <span className="k">比例：</span>
