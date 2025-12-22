@@ -60,7 +60,7 @@ export default function App() {
   const [apiKey, setApiKey] = useState(initial.apiKey)
   const [authHeader, setAuthHeader] = useState<AuthHeaderMode>(initial.authHeader)
 
-  const [prompt, setPrompt] = useState('Create a picture of a nano banana dish in a fancy restaurant with a Gemini theme')
+  const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [imageSize, setImageSize] = useState<SizeOption>(SIZE_OPTIONS[2])
 
@@ -274,7 +274,7 @@ export default function App() {
 
           <label className="field">
             <div className="label">提示词</div>
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={6} />
+            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={6} placeholder="在这里输入提示词" />
           </label>
 
           <div className="grid2">
@@ -305,15 +305,12 @@ export default function App() {
           </div>
 
           <div className="actions">
-            <button 
-              className="primary" 
-              onClick={onGenerate} 
+            <button
+              className="primary"
+              onClick={onGenerate}
               disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt}
             >
               {busy ? (inputImages.length > 0 ? '生成中（图生图）…' : '生成中…') : (inputImages.length > 0 ? '生成图片（图生图）' : '生成图片')}
-            </button>
-            <button onClick={download} disabled={!imgUrl}>
-              下载
             </button>
           </div>
 
@@ -343,6 +340,7 @@ export default function App() {
                   <span className="k">Base64：</span>
                   <span className="v">{rawBase64 ? `${rawBase64.length} chars` : '-'}</span>
                 </div>
+                <button className="primary" onClick={download} style={{marginTop: '12px', width: '100%'}}>下载图片</button>
               </div>
             </div>
           ) : (
