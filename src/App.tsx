@@ -61,7 +61,7 @@ export default function App() {
   const [authHeader, setAuthHeader] = useState<AuthHeaderMode>(initial.authHeader)
 
   const [prompt, setPrompt] = useState('')
-  const [aspectRatio, setAspectRatio] = useState('16:9')
+  const [aspectRatio, setAspectRatio] = useState('9:16')
   const [imageSize, setImageSize] = useState<SizeOption>(SIZE_OPTIONS[2])
 
   const [inputImages, setInputImages] = useState<Array<{ mimeType: string; base64Data: string; previewUrl: string; fileName: string }>>([])
@@ -167,7 +167,7 @@ export default function App() {
     <div className="page">
       <div className="topBar">
         <div className="topBarLeft">
-          <h1>Gemini 生图</h1>
+          <h1 style={{display: 'flex', alignItems: 'center', margin: 0}}><img src="/icon.svg" alt="logo" style={{width: '32px', height: '32px', marginRight: '12px'}} />零界设计</h1>
         </div>
         <div className="topBarRight">
           <button className="settingsBtn" onClick={() => setShowSettings(true)}>
