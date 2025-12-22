@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { generateImage, type AuthHeaderMode } from './api'
+import { GenerateButton } from './GenerateButton'
 
 type SizeOption = {
   label: string
@@ -227,7 +228,7 @@ export default function App() {
           <button className="imageModalClose" onClick={() => setShowImageModal(false)}>✕</button>
           <img src={imgUrl} alt="Full size" onClick={(e) => e.stopPropagation()} />
           <div className="imageModalToolbar" onClick={(e) => e.stopPropagation()}>
-            <button className="primary" onClick={download}>下载原图</button>
+            <GenerateButton onClick={download}>下载原图</GenerateButton>
           </div>
         </div>
       )}
@@ -305,13 +306,12 @@ export default function App() {
           </div>
 
           <div className="actions">
-            <button
-              className="primary"
+            <GenerateButton
               onClick={onGenerate}
               disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt}
             >
               {busy ? (inputImages.length > 0 ? '生成中（图生图）…' : '生成中…') : (inputImages.length > 0 ? '生成图片（图生图）' : '生成图片')}
-            </button>
+            </GenerateButton>
           </div>
 
           {error ? <div className="error">{error}</div> : null}
@@ -340,7 +340,9 @@ export default function App() {
                   <span className="k">Base64：</span>
                   <span className="v">{rawBase64 ? `${rawBase64.length} chars` : '-'}</span>
                 </div>
-                <button className="primary" onClick={download} style={{marginTop: '12px', width: '100%'}}>下载图片</button>
+                <div style={{marginTop: '12px'}}>
+                  <GenerateButton onClick={download}>下载图片</GenerateButton>
+                </div>
               </div>
             </div>
           ) : (
