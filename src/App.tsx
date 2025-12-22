@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { generateImage, type AuthHeaderMode } from './api'
 import { GenerateButton } from './GenerateButton'
+import { LoadingSpinner } from './LoadingSpinner'
 
 type SizeOption = {
   label: string
@@ -71,6 +72,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [rawBase64, setRawBase64] = useState<string | null>(null)
+  const [generationTime, setGenerationTime] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
 
@@ -126,6 +128,9 @@ export default function App() {
     setBusy(true)
     setImgUrl(null)
     setRawBase64(null)
+    setGenerationTime(null)
+    
+    const startTime = Date.now()
 
     try {
       persistConfig()
@@ -146,6 +151,9 @@ export default function App() {
       const url = `data:${img.mimeType};base64,${img.base64Data}`
       setImgUrl(url)
       setRawBase64(img.base64Data)
+      
+      const endTime = Date.now()
+      setGenerationTime(Math.round((endTime - startTime) / 1000))
     } catch (e: any) {
       setError(e?.message ? String(e.message) : String(e))
     } finally {
@@ -321,7 +329,7 @@ export default function App() {
           <div className="cardTitle">结果预览</div>
           {busy ? (
             <div className="loadingContainer">
-              <div className="spinner" />
+              <LoadingSpinner />
               <div>正在生成中...</div>
             </div>
           ) : imgUrl ? (
@@ -339,6 +347,14 @@ export default function App() {
                 <div>
                   <span className="k">Base64：</span>
                   <span className="v">{rawBase64 ? `${rawBase64.length} chars` : '-'}</span>
+                </div>
+                <div>
+                  <span className="k">生成用时：</span>
+                  <span className="v">
+                    {generationTime !== null
+                      ? `${Math.floor(generationTime / 60)}分${generationTime % 60}秒`
+                      : '-'}
+                  </span>
                 </div>
                 <div style={{marginTop: '12px'}}>
                   <GenerateButton onClick={download}>下载图片</GenerateButton>
