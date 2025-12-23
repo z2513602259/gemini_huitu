@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { generateImage, type AuthHeaderMode } from './api'
 import { GenerateButton } from './GenerateButton'
 import { LoadingSpinner } from './LoadingSpinner'
@@ -37,6 +37,73 @@ const SIZE_OPTIONS: SizeOption[] = [
   { label: '4K', imageSize: '4K' }
 ]
 
+type WorkflowTemplate = {
+  id: string
+  name: string
+  icon: string
+  description: string
+  prompt: string
+}
+
+const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    id: 'anime-style',
+    name: '动漫风格',
+    icon: '🎨',
+    description: '将照片转换为动漫风格',
+    prompt: 'Convert this image to anime style, with vibrant colors, clean lines, and typical anime character features'
+  },
+  {
+    id: 'oil-painting',
+    name: '油画风格',
+    icon: '🖼️',
+    description: '转换为油画艺术风格',
+    prompt: 'Transform this image into an oil painting style with visible brush strokes, rich textures, and artistic color blending'
+  },
+  {
+    id: 'photo-enhance',
+    name: '照片增强',
+    icon: '📸',
+    description: '提升照片质量和细节',
+    prompt: 'Enhance this photo with improved clarity, better lighting, enhanced colors, and sharper details while maintaining natural look'
+  },
+  {
+    id: 'background-blur',
+    name: '背景虚化',
+    icon: '🌫️',
+    description: '虚化背景突出主体',
+    prompt: 'Apply professional bokeh effect to blur the background while keeping the main subject sharp and in focus'
+  },
+  {
+    id: 'vintage-film',
+    name: '复古胶片',
+    icon: '📷',
+    description: '复古胶片相机效果',
+    prompt: 'Apply vintage film camera effect with grain, faded colors, light leaks, and nostalgic atmosphere'
+  },
+  {
+    id: 'cyberpunk',
+    name: '赛博朋克',
+    icon: '🌃',
+    description: '赛博朋克未来风格',
+    prompt: 'Transform into cyberpunk style with neon lights, futuristic elements, dark atmosphere, and high-tech aesthetic'
+  },
+  {
+    id: 'product-detail',
+    name: '产品细节图',
+    icon: '📦',
+    description: '生成产品细节图',
+    prompt: '创建一个无缝的 3x3 网格故事板，包含九 (9) 张独特的产品摄影照片。这些照片必须严格基于提供的输入图像中的关键主体（产品）、环境设置和光线条件。核心要求：绝对一致性： 在所有九个画面中，必须保持完全相同的产品型号、材质细节、颜色、环境背景元素和演播室/自然光照方案。电商级摄影质量： 图像应具有高端商业摄影的质感，包括锐利的焦点、丰富的纹理细节和专业的布光。逼真的景深： 随着镜头推进（从远景到微距），背景应呈现出逼真且渐进的柔焦（散景/bokeh）效果，以突出产品主体。格式： 最终输出仅为一张干净的 3x3 网格图像，无任何文字、边框或覆盖层。网格镜头细分：第1排，第1列（环境远景）： 极远景镜头，建立产品在其更广阔环境背景中的位置，展示其生活方式语境或整体尺度。第2列（产品全貌主角）： 完整的全景镜头，清晰展示产品的整体形态，这是标准的电商"主角"展示图。第3列（中景切入）： 中景镜头，构图聚焦于产品的核心主体部分，强调其主要结构和形态。第2排，第1列（中近景聚焦）： 中近景，更紧密地聚焦于产品的一个重要功能区域或部件组合。第2列（材质特写）： 特写镜头，强调特定的设计特征、表面纹理、标志或关键接口（如按钮、织物编织、屏幕显示）。第3列（超细部近景）： 超近景，隔离出产品上复杂的细节，展示精湛的工艺和材料饰面质量。第3排，第1列（微距纹理）： 微距摄影镜头，景深极浅，强烈聚焦于某一关键特征的最微小纹理或材料结构上。第2列（英雄仰拍）： 充满活力的低角度镜头，从地面向上仰拍产品，赋予其宏伟、壮观和令人印象深刻的英雄感。第3列（上帝视角俯拍）： 高角度俯拍（接近平铺/Flat lay），直接向下俯视产品，清晰展示其布局、轮廓或顶部界面。'
+  },
+  {
+    id: 'product-multi-angle',
+    name: '产品多角度',
+    icon: '🔄',
+    description: '生成产品的多角度',
+    prompt: '生成产品的多角度拍摄图，包括正视图，左视图，后视图，右视图，俯视图，仰视图，左右45°角'
+  }
+]
+
 function readInitialConfig() {
   const fromWindow = window.__APP_CONFIG__ || {}
   const fromStorageRaw = localStorage.getItem('app_config')
@@ -53,9 +120,14 @@ function readInitialConfig() {
   }
 }
 
+type AppMode = 'generate' | 'workflow'
+
 export default function App() {
   const initial = useMemo(() => readInitialConfig(), [])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [mode, setMode] = useState<AppMode>('generate')
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowTemplate | null>(null)
 
   const [apiBaseUrl, setApiBaseUrl] = useState(initial.apiBaseUrl)
   const [apiPath, setApiPath] = useState(initial.apiPath)
@@ -75,6 +147,7 @@ export default function App() {
   const [generationTime, setGenerationTime] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const ratioMeta = useMemo(() => RATIOS.find((r) => r.ratio === aspectRatio) || RATIOS[0], [aspectRatio])
   const resolutionText = useMemo(() => {
@@ -123,6 +196,35 @@ export default function App() {
     })
   }
 
+  function handlePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    Array.from(items).forEach(item => {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = () => {
+          const base64 = reader.result as string
+          const base64Data = base64.split(',')[1]
+          setInputImages(prev => [...prev, {
+            mimeType: file.type,
+            base64Data,
+            previewUrl: base64,
+            fileName: `pasted-${Date.now()}.png`
+          }])
+          setError(null)
+        }
+        reader.onerror = () => {
+          setError('读取图片失败')
+        }
+        reader.readAsDataURL(file)
+      }
+    })
+  }
+
   async function onGenerate() {
     setError(null)
     setBusy(true)
@@ -134,12 +236,16 @@ export default function App() {
 
     try {
       persistConfig()
+      
+      // 工作流模式使用预设提示词，生图模式使用用户输入的提示词
+      const finalPrompt = mode === 'workflow' && selectedWorkflow ? selectedWorkflow.prompt : prompt
+      
       const img = await generateImage({
         apiBaseUrl,
         apiPath,
         apiKey,
         authHeader,
-        prompt,
+        prompt: finalPrompt,
         aspectRatio,
         imageSize: imageSize.imageSize,
         inputImages: inputImages.length > 0 ? inputImages.map(img => ({
@@ -172,11 +278,80 @@ export default function App() {
     a.remove()
   }
 
+  function handleDragStart(index: number) {
+    setDraggedIndex(index)
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault()
+    if (draggedIndex === null || draggedIndex === index) return
+    
+    const newImages = [...inputImages]
+    const draggedItem = newImages[draggedIndex]
+    newImages.splice(draggedIndex, 1)
+    newImages.splice(index, 0, draggedItem)
+    
+    setInputImages(newImages)
+    setDraggedIndex(index)
+  }
+
+  function handleDragEnd() {
+    setDraggedIndex(null)
+  }
+
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      Array.from(items).forEach(item => {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (!file) return
+
+          const reader = new FileReader()
+          reader.onload = () => {
+            const base64 = reader.result as string
+            const base64Data = base64.split(',')[1]
+            setInputImages(prev => [...prev, {
+              mimeType: file.type,
+              base64Data,
+              previewUrl: base64,
+              fileName: `pasted-${Date.now()}.png`
+            }])
+            setError(null)
+          }
+          reader.onerror = () => {
+            setError('读取图片失败')
+          }
+          reader.readAsDataURL(file)
+        }
+      })
+    }
+
+    window.addEventListener('paste', handleGlobalPaste)
+    return () => window.removeEventListener('paste', handleGlobalPaste)
+  }, [])
+
   return (
     <div className="page">
       <div className="topBar">
         <div className="topBarLeft">
           <h1 style={{display: 'flex', alignItems: 'center', margin: 0}}><img src="/icon.svg" alt="logo" style={{width: '32px', height: '32px', marginRight: '12px'}} />零界设计</h1>
+          <div className="modeTabs">
+            <button
+              className={`modeTab ${mode === 'generate' ? 'active' : ''}`}
+              onClick={() => setMode('generate')}
+            >
+              🎨 生图模式
+            </button>
+            <button
+              className={`modeTab ${mode === 'workflow' ? 'active' : ''}`}
+              onClick={() => setMode('workflow')}
+            >
+              🔄 工作流模式 (Beta)
+            </button>
+          </div>
         </div>
         <div className="topBarRight">
           <button className="settingsBtn" onClick={() => setShowSettings(true)}>
@@ -242,8 +417,10 @@ export default function App() {
       )}
 
       <div className="mainContent">
-        <section className="leftPanel">
-          <div className="cardTitle">生成参数</div>
+        {mode === 'generate' ? (
+          <>
+            <section className="leftPanel">
+              <div className="cardTitle">生成参数</div>
 
           <div className="field">
             <div className="label">参考图片（可选，支持多张）</div>
@@ -260,13 +437,22 @@ export default function App() {
                   handleImageUpload(event)
                 }
               }}
+              onPaste={handlePaste}
+              tabIndex={0}
             >
-              <div>点击选择文件或拖拽文件到此处</div>
+              <div>点击选择文件、拖拽文件或粘贴图片到此处</div>
             </div>
             {inputImages.length > 0 && (
               <div className="imagesGrid">
                 {inputImages.map((img, index) => (
-                  <div key={index} className="imageItem">
+                  <div
+                    key={index}
+                    className={`imageItem ${draggedIndex === index ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragEnd={handleDragEnd}
+                  >
                     <img src={img.previewUrl} alt={img.fileName} />
                     <div className="fileName">{img.fileName}</div>
                     <button onClick={() => {
@@ -323,48 +509,197 @@ export default function App() {
           </div>
 
           {error ? <div className="error">{error}</div> : null}
-        </section>
+            </section>
 
-        <section className="rightPanel">
-          <div className="cardTitle">结果预览</div>
-          {busy ? (
-            <div className="loadingContainer">
-              <LoadingSpinner />
-              <div>正在生成中...</div>
-            </div>
-          ) : imgUrl ? (
-            <div className="preview">
-              <img src={imgUrl} alt="generated" onClick={() => setShowImageModal(true)} title="点击查看大图" />
-              <div className="meta">
-                <div>
-                  <span className="k">比例：</span>
-                  <span className="v">{aspectRatio}</span>
+            <section className="rightPanel">
+              <div className="cardTitle">结果预览</div>
+              {busy ? (
+                <div className="loadingContainer">
+                  <LoadingSpinner />
+                  <div>正在生成中...</div>
                 </div>
-                <div>
-                  <span className="k">分辨率：</span>
-                  <span className="v">{imageSize.imageSize ? ratioMeta.px[imageSize.imageSize] || '-' : '默认'}</span>
+              ) : imgUrl ? (
+                <div className="preview">
+                  <img src={imgUrl} alt="generated" onClick={() => setShowImageModal(true)} title="点击查看大图" />
+                  <div className="meta">
+                    <div>
+                      <span className="k">比例：</span>
+                      <span className="v">{aspectRatio}</span>
+                    </div>
+                    <div>
+                      <span className="k">分辨率：</span>
+                      <span className="v">{imageSize.imageSize ? ratioMeta.px[imageSize.imageSize] || '-' : '默认'}</span>
+                    </div>
+                    <div>
+                      <span className="k">Base64：</span>
+                      <span className="v">{rawBase64 ? `${rawBase64.length} chars` : '-'}</span>
+                    </div>
+                    <div>
+                      <span className="k">生成用时：</span>
+                      <span className="v">
+                        {generationTime !== null
+                          ? `${Math.floor(generationTime / 60)}分${generationTime % 60}秒`
+                          : '-'}
+                      </span>
+                    </div>
+                    <div style={{marginTop: '12px'}}>
+                      <GenerateButton onClick={download}>下载图片</GenerateButton>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="k">Base64：</span>
-                  <span className="v">{rawBase64 ? `${rawBase64.length} chars` : '-'}</span>
-                </div>
-                <div>
-                  <span className="k">生成用时：</span>
-                  <span className="v">
-                    {generationTime !== null
-                      ? `${Math.floor(generationTime / 60)}分${generationTime % 60}秒`
-                      : '-'}
-                  </span>
-                </div>
-                <div style={{marginTop: '12px'}}>
-                  <GenerateButton onClick={download}>下载图片</GenerateButton>
+              ) : (
+                <div className="empty">还没有生成图片</div>
+              )}
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="leftPanel">
+              <div className="cardTitle">工作流参数</div>
+
+              <div className="field">
+                <div className="label">选择工作流模板</div>
+                <div className="workflowGrid">
+                  {WORKFLOW_TEMPLATES.map(template => (
+                    <div
+                      key={template.id}
+                      className={`workflowCard ${selectedWorkflow?.id === template.id ? 'active' : ''}`}
+                      onClick={() => setSelectedWorkflow(template)}
+                    >
+                      <div className="workflowIcon">{template.icon}</div>
+                      <div className="workflowName">{template.name}</div>
+                      <div className="workflowDesc">{template.description}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="empty">还没有生成图片</div>
-          )}
-        </section>
+
+              <div className="field">
+                <div className="label">参考图片（必需，支持多张）</div>
+                <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} style={{display: 'none'}} />
+                <div
+                  className="fileDropZone"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const files = e.dataTransfer.files
+                    if (files && files.length > 0) {
+                      const event = { target: { files } } as any
+                      handleImageUpload(event)
+                    }
+                  }}
+                  onPaste={handlePaste}
+                  tabIndex={0}
+                >
+                  <div>点击选择文件、拖拽文件或粘贴图片到此处</div>
+                </div>
+                {inputImages.length > 0 && (
+                  <div className="imagesGrid">
+                    {inputImages.map((img, index) => (
+                      <div
+                        key={index}
+                        className={`imageItem ${draggedIndex === index ? 'dragging' : ''}`}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <img src={img.previewUrl} alt={img.fileName} />
+                        <div className="fileName">{img.fileName}</div>
+                        <button onClick={() => {
+                          setInputImages(prev => prev.filter((_, i) => i !== index))
+                          if (inputImages.length === 1 && fileInputRef.current) {
+                            fileInputRef.current.value = ''
+                          }
+                        }} className="removeBtn">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid2">
+                <label className="field">
+                  <div className="label">宽高比</div>
+                  <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}>
+                    {RATIOS.map((r) => (
+                      <option key={r.ratio} value={r.ratio}>
+                        {r.ratio}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field">
+                  <div className="label">分辨率档位 {resolutionText}</div>
+                  <select
+                    value={imageSize.label}
+                    onChange={(e) => setImageSize(SIZE_OPTIONS.find((s) => s.label === e.target.value) || SIZE_OPTIONS[0])}
+                  >
+                    {SIZE_OPTIONS.map((s) => (
+                      <option key={s.label} value={s.label}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="actions">
+                <GenerateButton
+                  onClick={onGenerate}
+                  disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !selectedWorkflow || inputImages.length === 0}
+                >
+                  {busy ? '生成中…' : '生成图片'}
+                </GenerateButton>
+              </div>
+
+              {error ? <div className="error">{error}</div> : null}
+            </section>
+
+            <section className="rightPanel">
+              <div className="cardTitle">结果预览</div>
+              {busy ? (
+                <div className="loadingContainer">
+                  <LoadingSpinner />
+                  <div>正在生成中...</div>
+                </div>
+              ) : imgUrl ? (
+                <div className="preview">
+                  <img src={imgUrl} alt="generated" onClick={() => setShowImageModal(true)} title="点击查看大图" />
+                  <div className="meta">
+                    <div>
+                      <span className="k">工作流：</span>
+                      <span className="v">{selectedWorkflow?.name || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="k">比例：</span>
+                      <span className="v">{aspectRatio}</span>
+                    </div>
+                    <div>
+                      <span className="k">分辨率：</span>
+                      <span className="v">{imageSize.imageSize ? ratioMeta.px[imageSize.imageSize] || '-' : '默认'}</span>
+                    </div>
+                    <div>
+                      <span className="k">生成用时：</span>
+                      <span className="v">
+                        {generationTime !== null
+                          ? `${Math.floor(generationTime / 60)}分${generationTime % 60}秒`
+                          : '-'}
+                      </span>
+                    </div>
+                    <div style={{marginTop: '12px'}}>
+                      <GenerateButton onClick={download}>下载图片</GenerateButton>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="empty">还没有生成图片</div>
+              )}
+            </section>
+          </>
+        )}
       </div>
     </div>
   )
