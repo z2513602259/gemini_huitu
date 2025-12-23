@@ -101,6 +101,13 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     icon: '🔄',
     description: '生成产品的多角度',
     prompt: '生成产品的多角度拍摄图，包括正视图，左视图，后视图，右视图，俯视图，仰视图，左右45°角'
+  },
+  {
+    id: 'product-retouch',
+    name: '产品精修',
+    icon: '✨',
+    description: '对产品进行商业级精修',
+    prompt: '对这个产品进行商业级的产品精修，将精修的产品放置在白色背景上'
   }
 ]
 
