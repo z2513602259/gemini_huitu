@@ -318,7 +318,7 @@ export default function App() {
               onClick={onGenerate}
               disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt}
             >
-              {busy ? (inputImages.length > 0 ? '生成中（图生图）…' : '生成中…') : (inputImages.length > 0 ? '生成图片（图生图）' : '生成图片')}
+              {busy ? '生成中…' : '生成图片'}
             </GenerateButton>
           </div>
 
