@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { generateImage, type AuthHeaderMode } from './api'
 import { GenerateButton } from './GenerateButton'
 import { LoadingSpinner } from './LoadingSpinner'
+import { HistoryView } from './HistoryView'
+import { saveHistory, checkStorageLimit } from './historyDB'
+import type { HistoryItem } from './types'
 
 type SizeOption = {
   label: string
@@ -154,6 +157,7 @@ export default function App() {
   const [generationTime, setGenerationTime] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const ratioMeta = useMemo(() => RATIOS.find((r) => r.ratio === aspectRatio) || RATIOS[0], [aspectRatio])
@@ -266,7 +270,30 @@ export default function App() {
       setRawBase64(img.base64Data)
       
       const endTime = Date.now()
-      setGenerationTime(Math.round((endTime - startTime) / 1000))
+      const genTime = Math.round((endTime - startTime) / 1000)
+      setGenerationTime(genTime)
+      
+      // 保存到历史记录
+      const historyItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        mode,
+        prompt: finalPrompt,
+        aspectRatio,
+        imageSize: imageSize.imageSize,
+        workflowId: selectedWorkflow?.id,
+        workflowName: selectedWorkflow?.name,
+        imageData: img.base64Data,
+        mimeType: img.mimeType,
+        inputImages: inputImages.length > 0 ? inputImages.map(img => ({
+          mimeType: img.mimeType,
+          base64Data: img.base64Data
+        })) : undefined,
+        generationTime: genTime
+      }
+      
+      await saveHistory(historyItem)
+      await checkStorageLimit(100)
     } catch (e: any) {
       setError(e?.message ? String(e.message) : String(e))
     } finally {
@@ -304,6 +331,29 @@ export default function App() {
 
   function handleDragEnd() {
     setDraggedIndex(null)
+  }
+  
+  // 从历史记录重新生成
+  function regenerateFromHistory(item: HistoryItem) {
+    setMode(item.mode)
+    setPrompt(item.prompt)
+    setAspectRatio(item.aspectRatio)
+    setImageSize(SIZE_OPTIONS.find(s => s.imageSize === item.imageSize) || SIZE_OPTIONS[0])
+    
+    if (item.mode === 'workflow' && item.workflowId) {
+      const workflow = WORKFLOW_TEMPLATES.find(w => w.id === item.workflowId)
+      setSelectedWorkflow(workflow || null)
+    }
+    
+    if (item.inputImages) {
+      setInputImages(item.inputImages.map((img, index) => ({
+        ...img,
+        previewUrl: `data:${img.mimeType};base64,${img.base64Data}`,
+        fileName: `history-input-${index + 1}.png`
+      })))
+    } else {
+      setInputImages([])
+    }
   }
 
   useEffect(() => {
@@ -361,6 +411,9 @@ export default function App() {
           </div>
         </div>
         <div className="topBarRight">
+          <button className="settingsBtn" onClick={() => setShowHistoryDrawer(true)}>
+            📜 历史记录
+          </button>
           <button className="settingsBtn" onClick={() => setShowSettings(true)}>
             ⚙️ 设置
           </button>
@@ -708,6 +761,23 @@ export default function App() {
           </>
         )}
       </div>
+      {showHistoryDrawer && (
+        <>
+          <div className="historyDrawerOverlay" onClick={() => setShowHistoryDrawer(false)} />
+          <div className="historyDrawer">
+            <div className="historyDrawerHeader">
+              <h2>历史记录</h2>
+              <button className="closeBtn" onClick={() => setShowHistoryDrawer(false)}>✕</button>
+            </div>
+            <div className="historyDrawerContent">
+              <HistoryView onRegenerate={(item) => {
+                regenerateFromHistory(item)
+                setShowHistoryDrawer(false)
+              }} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
