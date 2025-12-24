@@ -1197,7 +1197,7 @@ input[type="file"] {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 500px;
+  width: 650px;
   max-width: 90vw;
   background: #0f152a; /* 稍微深一点的背景色 */
   border-left: 1px solid var(--border);
