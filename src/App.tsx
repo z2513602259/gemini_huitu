@@ -166,6 +166,7 @@ export default function App() {
   const [showImageModal, setShowImageModal] = useState(false)
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [showApiKey, setShowApiKey] = useState(false)
 
   const ratioMeta = useMemo(() => RATIOS.find((r) => r.ratio === aspectRatio) || RATIOS[0], [aspectRatio])
   const resolutionText = useMemo(() => {
@@ -451,7 +452,33 @@ export default function App() {
 
               <label className="field">
                 <div className="label">API Key</div>
-                <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." />
+                <div style={{position: 'relative'}}>
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    style={{paddingRight: '40px'}}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '18px',
+                      padding: '4px'
+                    }}
+                    title={showApiKey ? '隐藏' : '显示'}
+                  >
+                    {showApiKey ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                </div>
               </label>
 
               <label className="field">
