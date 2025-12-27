@@ -174,6 +174,12 @@ export default function App() {
     return ratioMeta.px[imageSize.imageSize] ? `（约 ${ratioMeta.px[imageSize.imageSize]}）` : ''
   }, [imageSize.imageSize, ratioMeta])
 
+  // 格式化 API Key 显示：首尾各6字符，中间用点号隐藏
+  const displayApiKey = useMemo(() => {
+    if (showApiKey || !apiKey || apiKey.length <= 12) return apiKey
+    return `${apiKey.slice(0, 6)}${'•'.repeat(Math.min(apiKey.length - 12, 20))}${apiKey.slice(-6)}`
+  }, [apiKey, showApiKey])
+
   function persistConfig() {
     localStorage.setItem(
       'app_config',
@@ -454,9 +460,11 @@ export default function App() {
                 <div className="label">API Key</div>
                 <div style={{position: 'relative'}}>
                   <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
+                    type="text"
+                    value={displayApiKey}
                     onChange={(e) => setApiKey(e.target.value)}
+                    onFocus={() => setShowApiKey(true)}
+                    onBlur={() => setShowApiKey(false)}
                     placeholder="sk-..."
                     style={{paddingRight: '40px'}}
                   />
