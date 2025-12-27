@@ -111,6 +111,13 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     icon: '✨',
     description: '对产品进行商业级精修',
     prompt: '对这个产品进行商业级的产品精修，将精修的产品放置在白色背景上'
+  },
+  {
+    id: 'product-replace',
+    name: '产品替换',
+    icon: '🔀',
+    description: '替换场景中的产品',
+    prompt: '将图1的产品放到图2的场景中，替换原有的产品，重新打光，使产品和场景融合自然，有自然光影，产品保持一致，去除场景中的文字和logo'
   }
 ]
 
@@ -636,6 +643,9 @@ export default function App() {
 
               <div className="field">
                 <div className="label">参考图片（必需，支持多张）</div>
+                {selectedWorkflow?.id === 'product-replace' && (
+                  <div style={{fontSize: '12px', color: 'var(--muted2)', marginTop: '4px'}}>💡 提示：第一张为产品图，第二张为场景图</div>
+                )}
                 <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} style={{display: 'none'}} />
                 <div
                   className="fileDropZone"
