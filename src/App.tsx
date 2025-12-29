@@ -117,7 +117,7 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     name: '产品替换',
     icon: '🔀',
     description: '替换场景中的产品',
-    prompt: '将图1的产品放到图2的场景中，替换原有的产品，重新打光，使产品和场景融合自然，有自然光影，产品保持一致，去除场景中的文字和logo'
+    prompt: '将图1的产品放到图2的场景中，替换原有的产品，重新打光，使产品和场景融合自然，有自然光影，产品保持一致'
   }
 ]
 
