@@ -502,7 +502,10 @@ export default function App() {
               </div>
             </div>
             <div className="modalFooter">
-              <button className="primary" onClick={() => setShowSettings(false)}>确定</button>
+              <button className="primary" onClick={() => {
+                persistConfig()
+                setShowSettings(false)
+              }}>确定</button>
             </div>
           </div>
         </div>
