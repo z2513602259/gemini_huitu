@@ -5,3 +5,5 @@ dist
 .DS_Store
 *.log
 历史对话/
+.trae/
+*.bak

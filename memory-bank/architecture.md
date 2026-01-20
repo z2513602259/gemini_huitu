@@ -127,6 +127,11 @@ interface HistoryItem {
 
 ### 4. UI 组件
 
+#### Design System (New)
+- **Styling**: Tailwind CSS
+- **Theming**: Dark Mode + Glassmorphism
+- **Icons**: Lucide React
+
 #### HistoryView.tsx
 - 历史记录列表展示
 - 支持删除和重新生成操作
@@ -137,6 +142,11 @@ interface HistoryItem {
 
 #### LoadingSpinner.tsx
 - 加载动画组件
+
+#### index.css
+- Tailwind 指令
+- 自定义 Glassmorphism 工具类 (.glass-panel, .glass-card, .glass-input)
+- 全局动画定义
 
 ## 数据流
 

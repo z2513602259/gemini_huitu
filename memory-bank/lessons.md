@@ -81,6 +81,21 @@ const displayApiKey = useMemo(() => {
 - 用户体验一致
 - 易于扩展新模式
 
+### 4. UI 风格升级 (Glassmorphism + Tailwind)
+**经验**：现代化的 UI 设计能显著提升用户体验
+- **Tailwind CSS**: 极大地加快了样式开发速度，特别是在处理响应式和深色模式时。
+- **Glassmorphism**: 通过 `backdrop-blur` 和半透明背景 (`bg-white/5`) 营造高级感。
+- **工具类封装**: 将常用的玻璃拟态样式封装为 `.glass-card` 等工具类，保持代码整洁。
+
+**实现要点**：
+```css
+.glass-panel {
+  @apply bg-slate-900/40 backdrop-blur-xl border border-white/10;
+}
+```
+- 使用 Lucide React 图标库替换原有图标，风格更统一。
+- 深色模式下使用 Slate-950 作为背景色，配合鲜艳的强调色（Violet/Emerald）。
+
 ## 架构决策
 
 ### 1. 单组件架构

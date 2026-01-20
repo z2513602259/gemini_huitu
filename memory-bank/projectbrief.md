@@ -7,6 +7,12 @@
 基于 Gemini API 的图片生成 Web 应用，支持文生图和图生图两种模式，可部署到腾讯 EdgeOne 静态站点。
 
 ## 核心功能
+- **现代化 UI 设计**
+  - Glassmorphism (毛玻璃) 风格界面
+  - 深色模式 (Dark Mode)
+  - 响应式分栏布局
+  - 平滑的动画和交互反馈
+
 - **双模式支持**
   - 生图模式：纯文本提示词生成图片（Text-to-Image）
   - 工作流模式：基于参考图片 + 提示词生成图片（Image-to-Image）
@@ -44,6 +50,8 @@
 - **前端框架**: React 18.3.1
 - **开发语言**: TypeScript 5.6.3
 - **构建工具**: Vite 6.0.1
+- **样式方案**: Tailwind CSS 3.4 + Glassmorphism
+- **图标库**: Lucide React
 - **数据存储**: IndexedDB（历史记录）
 - **部署目标**: 腾讯 EdgeOne 静态站点
 

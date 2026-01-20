@@ -5,6 +5,11 @@ import { LoadingSpinner } from './LoadingSpinner'
 import { HistoryView } from './HistoryView'
 import { saveHistory, checkStorageLimit } from './historyDB'
 import type { HistoryItem } from './types'
+import { 
+  Settings, History, Image as ImageIcon, Sparkles, Workflow, 
+  Upload, X, Download, ChevronDown, Eye, EyeOff, LayoutGrid,
+  Maximize2, Layers, Wand2, Ratio, Monitor, ImagePlus, Sun, Moon
+} from 'lucide-react'
 
 type SizeOption = {
   label: string
@@ -122,7 +127,7 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 ]
 
 function readInitialConfig() {
-  const fromWindow = window.__APP_CONFIG__ || {}
+  const fromWindow = (window as any).__APP_CONFIG__ || {}
   const fromStorageRaw = localStorage.getItem('app_config')
   const fromStorage = fromStorageRaw ? (JSON.parse(fromStorageRaw) as any) : {}
   const merged = { ...fromWindow, ...fromStorage }
@@ -167,6 +172,24 @@ export default function App() {
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme')
+      if (saved === 'light' || saved === 'dark') return saved
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    return 'dark'
+  })
+
+  useEffect(() => {
+    const root = window.document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   const ratioMeta = useMemo(() => RATIOS.find((r) => r.ratio === aspectRatio) || RATIOS[0], [aspectRatio])
   const resolutionText = useMemo(() => {
@@ -174,7 +197,6 @@ export default function App() {
     return ratioMeta.px[imageSize.imageSize] ? `（约 ${ratioMeta.px[imageSize.imageSize]}）` : ''
   }, [imageSize.imageSize, ratioMeta])
 
-  // 格式化 API Key 显示：首尾各6字符，中间用点号隐藏
   const displayApiKey = useMemo(() => {
     if (showApiKey || !apiKey || apiKey.length <= 12) return apiKey
     return `${apiKey.slice(0, 6)}${'•'.repeat(Math.min(apiKey.length - 12, 20))}${apiKey.slice(-6)}`
@@ -262,7 +284,6 @@ export default function App() {
     try {
       persistConfig()
       
-      // 工作流模式使用预设提示词，生图模式使用用户输入的提示词
       const finalPrompt = mode === 'workflow' && selectedWorkflow ? selectedWorkflow.prompt : prompt
       
       const img = await generateImage({
@@ -287,7 +308,6 @@ export default function App() {
       const genTime = Math.round((endTime - startTime) / 1000)
       setGenerationTime(genTime)
       
-      // 保存到历史记录
       const historyItem: HistoryItem = {
         id: crypto.randomUUID(),
         timestamp: Date.now(),
@@ -347,7 +367,6 @@ export default function App() {
     setDraggedIndex(null)
   }
   
-  // 从历史记录重新生成
   function regenerateFromHistory(item: HistoryItem) {
     setMode(item.mode)
     setPrompt(item.prompt)
@@ -405,60 +424,428 @@ export default function App() {
   }, [])
 
   return (
-    <div className="page">
-      <div className="topBar">
-        <div className="topBarLeft">
-          <h1 style={{display: 'flex', alignItems: 'center', margin: 0}}><img src="/icon.svg" alt="logo" style={{width: '32px', height: '32px', marginRight: '12px'}} />零界设计</h1>
-          <div className="modeTabs">
-            <button
-              className={`modeTab ${mode === 'generate' ? 'active' : ''}`}
-              onClick={() => setMode('generate')}
-            >
-              🎨 生图模式
-            </button>
-            <button
-              className={`modeTab ${mode === 'workflow' ? 'active' : ''}`}
-              onClick={() => setMode('workflow')}
-            >
-              🔄 工作流模式 (Beta)
-            </button>
+    <div className="flex h-screen w-full flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-violet-500/30 transition-colors duration-300">
+      {/* Header */}
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/50 dark:border-white/5 bg-white/60 dark:bg-slate-900/50 px-6 backdrop-blur-xl z-20 transition-colors duration-300">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+             <img src="/icon.svg" className="h-8 w-8 shadow-lg shadow-violet-500/20" alt="Logo" />
+             <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">零界设计 <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1 opacity-50">PRO</span></h1>
           </div>
+          
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100/50 dark:bg-white/5 p-1 rounded-xl border border-slate-200/50 dark:border-white/5 transition-colors duration-300">
+            <button
+              onClick={() => setMode('generate')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === 'generate' 
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              生图模式
+            </button>
+            <button
+              onClick={() => setMode('workflow')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === 'workflow' 
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'
+              }`}
+            >
+              <Workflow className="w-4 h-4" />
+              工作流模式
+            </button>
+          </nav>
         </div>
-        <div className="topBarRight">
-          <button className="settingsBtn" onClick={() => setShowHistoryDrawer(true)}>
-            📜 历史记录
-          </button>
-          <button className="settingsBtn" onClick={() => setShowSettings(true)}>
-            ⚙️ 设置
-          </button>
-        </div>
-      </div>
 
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-white/5"
+            title={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button 
+            onClick={() => setShowHistoryDrawer(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-white/5"
+          >
+            <History className="w-4 h-4" />
+            <span className="hidden sm:inline">历史记录</span>
+          </button>
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-white/5"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex flex-1 overflow-hidden">
+        {/* Left Panel - Controls */}
+        <aside className="w-[400px] flex flex-col gap-6 border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-slate-900/20 p-6 overflow-y-auto backdrop-blur-sm z-10 custom-scrollbar transition-colors duration-300">
+          {mode === 'generate' ? (
+            <>
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <ImagePlus className="w-3.5 h-3.5" />
+                  参考图片
+                </div>
+                <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} className="hidden" />
+                <div
+                  className="w-full min-h-[100px] p-5 rounded-xl border-2 border-dashed border-slate-300/50 dark:border-white/10 bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 hover:border-violet-500/50 transition-all cursor-pointer flex flex-col items-center justify-center text-slate-400 dark:text-slate-400 gap-2 group"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const files = e.dataTransfer.files
+                    if (files && files.length > 0) {
+                      handleImageUpload({ target: { files } } as any)
+                    }
+                  }}
+                  onPaste={handlePaste}
+                  tabIndex={0}
+                >
+                  <Upload className="w-8 h-8 text-slate-400 dark:text-slate-600 group-hover:text-violet-500 transition-colors" />
+                  <div className="text-sm text-center">点击或拖拽上传图片<br/><span className="text-xs text-slate-500">支持 Ctrl+V 粘贴</span></div>
+                </div>
+
+                {inputImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mt-4">
+                    {inputImages.map((img, index) => (
+                      <div
+                        key={index}
+                        className={`relative aspect-square rounded-lg overflow-hidden border border-slate-200/50 dark:border-white/10 group ${draggedIndex === index ? 'opacity-50' : ''}`}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <img src={img.previewUrl} alt={img.fileName} className="w-full h-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-0 bg-black/60 p-1 text-[10px] truncate text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                          {img.fileName}
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInputImages(prev => prev.filter((_, i) => i !== index))
+                            if (inputImages.length === 1 && fileInputRef.current) {
+                              fileInputRef.current.value = ''
+                            }
+                          }} 
+                          className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <Wand2 className="w-3.5 h-3.5" />
+                  提示词
+                </div>
+                <textarea 
+                  value={prompt} 
+                  onChange={(e) => setPrompt(e.target.value)} 
+                  rows={6} 
+                  placeholder="描述你想要生成的画面..." 
+                  className="glass-input w-full resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <Ratio className="w-3.5 h-3.5" />
+                    宽高比
+                  </div>
+                  <div className="relative">
+                    <select 
+                      value={aspectRatio} 
+                      onChange={(e) => setAspectRatio(e.target.value)}
+                      className="glass-input w-full appearance-none cursor-pointer"
+                    >
+                      {RATIOS.map((r) => (
+                        <option key={r.ratio} value={r.ratio}>{r.ratio}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <Monitor className="w-3.5 h-3.5" />
+                    分辨率
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={imageSize.label}
+                      onChange={(e) => setImageSize(SIZE_OPTIONS.find((s) => s.label === e.target.value) || SIZE_OPTIONS[0])}
+                      className="glass-input w-full appearance-none cursor-pointer"
+                    >
+                      {SIZE_OPTIONS.map((s) => (
+                        <option key={s.label} value={s.label}>{s.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">{resolutionText}</div>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-slate-200/50 dark:border-white/5">
+                <GenerateButton
+                  onClick={onGenerate}
+                  disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt}
+                >
+                  {busy ? '生成中...' : '开始生成'}
+                </GenerateButton>
+                {error && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  工作流模板
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {WORKFLOW_TEMPLATES.map(template => (
+                    <div
+                      key={template.id}
+                      className={`glass-card p-3 rounded-xl cursor-pointer text-left relative overflow-hidden group flex items-center gap-3 ${
+                        selectedWorkflow?.id === template.id ? 'ring-2 ring-violet-500 bg-violet-500/10' : 'hover:bg-white/50 dark:hover:bg-white/5'
+                      }`}
+                      onClick={() => setSelectedWorkflow(template)}
+                    >
+                      <div className="text-2xl shrink-0 group-hover:scale-110 transition-transform duration-300">{template.icon}</div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="font-semibold text-sm text-slate-700 dark:text-slate-200 truncate">{template.name}</div>
+                        <div className="text-xs text-slate-500 truncate">{template.description}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                   <ImagePlus className="w-3.5 h-3.5" />
+                   参考图片 (必需)
+                </div>
+                {selectedWorkflow?.id === 'product-replace' && (
+                  <div className="text-xs text-yellow-600/80 dark:text-yellow-500/80 mb-2 px-2 py-1 bg-yellow-500/10 rounded border border-yellow-500/20">
+                    💡 提示：第一张为产品图，第二张为场景图
+                  </div>
+                )}
+                <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} className="hidden" />
+                <div
+                  className="w-full min-h-[100px] p-5 rounded-xl border-2 border-dashed border-slate-300/50 dark:border-white/10 bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 hover:border-violet-500/50 transition-all cursor-pointer flex flex-col items-center justify-center text-slate-400 dark:text-slate-400 gap-2 group"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const files = e.dataTransfer.files
+                    if (files && files.length > 0) {
+                      handleImageUpload({ target: { files } } as any)
+                    }
+                  }}
+                  onPaste={handlePaste}
+                  tabIndex={0}
+                >
+                  <Upload className="w-8 h-8 text-slate-400 dark:text-slate-600 group-hover:text-violet-500 transition-colors" />
+                  <div className="text-sm text-center">点击或拖拽上传图片<br/><span className="text-xs text-slate-500">支持 Ctrl+V 粘贴</span></div>
+                </div>
+                
+                {inputImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mt-4">
+                    {inputImages.map((img, index) => (
+                      <div
+                        key={index}
+                        className={`relative aspect-square rounded-lg overflow-hidden border border-slate-200/50 dark:border-white/10 group ${draggedIndex === index ? 'opacity-50' : ''}`}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <img src={img.previewUrl} alt={img.fileName} className="w-full h-full object-cover" />
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInputImages(prev => prev.filter((_, i) => i !== index))
+                            if (inputImages.length === 1 && fileInputRef.current) {
+                              fileInputRef.current.value = ''
+                            }
+                          }} 
+                          className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <Ratio className="w-3.5 h-3.5" />
+                    宽高比
+                  </div>
+                  <div className="relative">
+                    <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="glass-input w-full appearance-none cursor-pointer">
+                      {RATIOS.map((r) => <option key={r.ratio} value={r.ratio}>{r.ratio}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <Monitor className="w-3.5 h-3.5" />
+                    分辨率
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={imageSize.label}
+                      onChange={(e) => setImageSize(SIZE_OPTIONS.find((s) => s.label === e.target.value) || SIZE_OPTIONS[0])}
+                      className="glass-input w-full appearance-none cursor-pointer"
+                    >
+                      {SIZE_OPTIONS.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">{resolutionText}</div>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-slate-200/50 dark:border-white/5">
+                <GenerateButton
+                  onClick={onGenerate}
+                  disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !selectedWorkflow || inputImages.length === 0}
+                >
+                  {busy ? '生成中...' : '开始生成'}
+                </GenerateButton>
+                {error && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </aside>
+
+        {/* Right Panel - Preview */}
+        <section className="flex flex-1 flex-col items-center justify-center bg-slate-100/50 dark:bg-black/20 p-8 relative overflow-hidden transition-colors duration-300">
+           {/* Background Grid Pattern */}
+           <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20 pointer-events-none"></div>
+           
+           {busy ? (
+             <div className="flex flex-col items-center gap-6 z-10">
+               <LoadingSpinner />
+               <div className="text-slate-500 dark:text-slate-400 animate-pulse">正在发挥创意...</div>
+             </div>
+           ) : imgUrl ? (
+             <div className="relative max-w-full max-h-full flex flex-col items-center gap-4 z-10 animate-in fade-in zoom-in duration-300">
+               <div className="relative group">
+                 <img 
+                    src={imgUrl} 
+                    alt="generated" 
+                    className="max-h-[75vh] max-w-full rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 border border-slate-200/50 dark:border-white/10 cursor-zoom-in"
+                    onClick={() => setShowImageModal(true)} 
+                  />
+                  <button 
+                    onClick={() => setShowImageModal(true)}
+                    className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-md rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <Maximize2 className="w-5 h-5" />
+                  </button>
+               </div>
+               
+               <div className="flex items-center gap-6 px-6 py-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/50 dark:border-white/10 shadow-xl">
+                 <div className="flex flex-col">
+                   <span className="text-[10px] text-slate-500 uppercase tracking-wider">分辨率</span>
+                   <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{imageSize.imageSize ? ratioMeta.px[imageSize.imageSize] : '默认'}</span>
+                 </div>
+                 <div className="w-px h-8 bg-slate-200 dark:bg-white/10"></div>
+                 <div className="flex flex-col">
+                   <span className="text-[10px] text-slate-500 uppercase tracking-wider">耗时</span>
+                   <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{generationTime ? `${generationTime}s` : '-'}</span>
+                 </div>
+                 <div className="w-px h-8 bg-slate-200 dark:bg-white/10"></div>
+                 <button 
+                   onClick={download}
+                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 rounded-xl text-sm font-medium transition-colors text-slate-700 dark:text-white"
+                 >
+                   <Download className="w-4 h-4" />
+                   下载
+                 </button>
+               </div>
+             </div>
+           ) : (
+             <div className="flex flex-col items-center gap-4 text-slate-600 z-10">
+               <div className="w-24 h-24 rounded-3xl bg-white/50 dark:bg-white/5 flex items-center justify-center border border-slate-200/50 dark:border-white/5">
+                 <Sparkles className="w-10 h-10 opacity-50" />
+               </div>
+               <div className="text-lg font-medium text-slate-700 dark:text-slate-200">准备好开始创作了吗？</div>
+               <div className="text-sm opacity-60">在左侧配置参数，点击生成按钮</div>
+             </div>
+           )}
+        </section>
+      </main>
+
+      {/* Settings Modal */}
       {showSettings && (
-        <div className="modal" onClick={() => setShowSettings(false)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-            <div className="modalHeader">
-              <h2>API 设置</h2>
-              <button className="closeBtn" onClick={() => setShowSettings(false)}>✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSettings(false)}>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl w-full max-w-xl p-6 shadow-2xl m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-violet-500" />
+                API 设置
+              </h2>
+              <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
             </div>
-            <div className="modalBody">
-              <label className="field">
-                <div className="label">API Base URL</div>
-                <input value={apiBaseUrl} onChange={(e) => setApiBaseUrl(e.target.value)} placeholder="https://api.vectorengine.ai" />
-              </label>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">API Base URL</label>
+                <input 
+                  value={apiBaseUrl} 
+                  onChange={(e) => setApiBaseUrl(e.target.value)} 
+                  placeholder="https://api.vectorengine.ai" 
+                  className="glass-input w-full"
+                />
+              </div>
 
-              <label className="field">
-                <div className="label">API Path</div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">API Path</label>
                 <input
                   value={apiPath}
                   onChange={(e) => setApiPath(e.target.value)}
                   placeholder="/v1beta/models/...:generateContent"
+                  className="glass-input w-full"
                 />
-              </label>
+              </div>
 
-              <label className="field">
-                <div className="label">API Key</div>
-                <div style={{position: 'relative'}}>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">API Key</label>
+                <div className="relative">
                   <input
                     type="text"
                     value={displayApiKey}
@@ -466,358 +853,68 @@ export default function App() {
                     onFocus={() => setShowApiKey(true)}
                     onBlur={() => setShowApiKey(false)}
                     placeholder="sk-..."
-                    style={{paddingRight: '40px'}}
+                    className="glass-input w-full pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '18px',
-                      padding: '4px'
-                    }}
-                    title={showApiKey ? '隐藏' : '显示'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                   >
-                    {showApiKey ? '👁️' : '👁️‍🗨️'}
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              </label>
-
-              <label className="field">
-                <div className="label">鉴权 Header</div>
-                <select value={authHeader} onChange={(e) => setAuthHeader(e.target.value as AuthHeaderMode)}>
-                  <option value="x-goog-api-key">x-goog-api-key</option>
-                  <option value="authorization">Authorization</option>
-                </select>
-              </label>
-
-              <div className="hint">
-                提示：配置会保存在浏览器本地（localStorage）。你也可以在部署后通过修改 <code>config.js</code> 提供默认值。
               </div>
-            </div>
-            <div className="modalFooter">
-              <button className="primary" onClick={() => {
-                persistConfig()
-                setShowSettings(false)
-              }}>确定</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {showImageModal && imgUrl && (
-        <div className="imageModal" onClick={() => setShowImageModal(false)}>
-          <button className="imageModalClose" onClick={() => setShowImageModal(false)}>✕</button>
-          <img src={imgUrl} alt="Full size" onClick={(e) => e.stopPropagation()} />
-          <div className="imageModalToolbar" onClick={(e) => e.stopPropagation()}>
-            <GenerateButton onClick={download}>下载原图</GenerateButton>
-          </div>
-        </div>
-      )}
-
-      <div className="mainContent">
-        {mode === 'generate' ? (
-          <>
-            <section className="leftPanel">
-              <div className="cardTitle">生成参数</div>
-
-          <div className="field">
-            <div className="label">参考图片（可选，支持多张）</div>
-            <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} style={{display: 'none'}} />
-            <div
-              className="fileDropZone"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                const files = e.dataTransfer.files
-                if (files && files.length > 0) {
-                  const event = { target: { files } } as any
-                  handleImageUpload(event)
-                }
-              }}
-              onPaste={handlePaste}
-              tabIndex={0}
-            >
-              <div>点击选择文件、拖拽文件或粘贴图片到此处</div>
-            </div>
-            {inputImages.length > 0 && (
-              <div className="imagesGrid">
-                {inputImages.map((img, index) => (
-                  <div
-                    key={index}
-                    className={`imageItem ${draggedIndex === index ? 'dragging' : ''}`}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">鉴权 Header</label>
+                <div className="relative">
+                  <select 
+                    value={authHeader} 
+                    onChange={(e) => setAuthHeader(e.target.value as AuthHeaderMode)}
+                    className="glass-input w-full appearance-none cursor-pointer"
                   >
-                    <img src={img.previewUrl} alt={img.fileName} />
-                    <div className="fileName">{img.fileName}</div>
-                    <button onClick={() => {
-                      setInputImages(prev => prev.filter((_, i) => i !== index))
-                      if (inputImages.length === 1 && fileInputRef.current) {
-                        fileInputRef.current.value = ''
-                      }
-                    }} className="removeBtn">✕</button>
-                  </div>
-                ))}
+                    <option value="x-goog-api-key">x-goog-api-key</option>
+                    <option value="authorization">Authorization</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                </div>
               </div>
-            )}
-          </div>
+              
+              <div className="text-xs text-slate-500 bg-slate-100 dark:bg-white/5 p-3 rounded-lg border border-slate-200 dark:border-white/5">
+                提示：配置会保存在浏览器本地（localStorage）。
+              </div>
+            </div>
 
-          <label className="field">
-            <div className="label">提示词</div>
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={6} placeholder="在这里输入提示词" />
-          </label>
-
-          <div className="grid2">
-            <label className="field">
-              <div className="label">宽高比</div>
-              <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}>
-                {RATIOS.map((r) => (
-                  <option key={r.ratio} value={r.ratio}>
-                    {r.ratio}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <div className="label">分辨率档位 {resolutionText}</div>
-              <select
-                value={imageSize.label}
-                onChange={(e) => setImageSize(SIZE_OPTIONS.find((s) => s.label === e.target.value) || SIZE_OPTIONS[0])}
+            <div className="mt-8 flex justify-end">
+              <button 
+                className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-violet-600/20"
+                onClick={() => {
+                  persistConfig()
+                  setShowSettings(false)
+                }}
               >
-                {SIZE_OPTIONS.map((s) => (
-                  <option key={s.label} value={s.label}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                确定
+              </button>
+            </div>
           </div>
+        </div>
+      )}
 
-          <div className="actions">
-            <GenerateButton
-              onClick={onGenerate}
-              disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt}
-            >
-              {busy ? '生成中…' : '生成图片'}
-            </GenerateButton>
-          </div>
-
-          {error ? <div className="error">{error}</div> : null}
-            </section>
-
-            <section className="rightPanel">
-              <div className="cardTitle">结果预览</div>
-              {busy ? (
-                <div className="loadingContainer">
-                  <LoadingSpinner />
-                  <div>正在生成中...</div>
-                </div>
-              ) : imgUrl ? (
-                <div className="preview">
-                  <img src={imgUrl} alt="generated" onClick={() => setShowImageModal(true)} title="点击查看大图" />
-                  <div className="meta">
-                    <div>
-                      <span className="k">比例：</span>
-                      <span className="v">{aspectRatio}</span>
-                    </div>
-                    <div>
-                      <span className="k">分辨率：</span>
-                      <span className="v">{imageSize.imageSize ? ratioMeta.px[imageSize.imageSize] || '-' : '默认'}</span>
-                    </div>
-                    <div>
-                      <span className="k">Base64：</span>
-                      <span className="v">{rawBase64 ? `${rawBase64.length} chars` : '-'}</span>
-                    </div>
-                    <div>
-                      <span className="k">生成用时：</span>
-                      <span className="v">
-                        {generationTime !== null
-                          ? `${Math.floor(generationTime / 60)}分${generationTime % 60}秒`
-                          : '-'}
-                      </span>
-                    </div>
-                    <div style={{marginTop: '12px'}}>
-                      <GenerateButton onClick={download}>下载图片</GenerateButton>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="empty">还没有生成图片</div>
-              )}
-            </section>
-          </>
-        ) : (
-          <>
-            <section className="leftPanel">
-              <div className="cardTitle">工作流参数</div>
-
-              <div className="field">
-                <div className="label">选择工作流模板</div>
-                <div className="workflowGrid">
-                  {WORKFLOW_TEMPLATES.map(template => (
-                    <div
-                      key={template.id}
-                      className={`workflowCard ${selectedWorkflow?.id === template.id ? 'active' : ''}`}
-                      onClick={() => setSelectedWorkflow(template)}
-                    >
-                      <div className="workflowIcon">{template.icon}</div>
-                      <div className="workflowName">{template.name}</div>
-                      <div className="workflowDesc">{template.description}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="field">
-                <div className="label">参考图片（必需，支持多张）</div>
-                {selectedWorkflow?.id === 'product-replace' && (
-                  <div style={{fontSize: '12px', color: 'var(--muted2)', marginTop: '4px'}}>💡 提示：第一张为产品图，第二张为场景图</div>
-                )}
-                <input type="file" accept="image/*" multiple onChange={handleImageUpload} ref={fileInputRef} style={{display: 'none'}} />
-                <div
-                  className="fileDropZone"
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    const files = e.dataTransfer.files
-                    if (files && files.length > 0) {
-                      const event = { target: { files } } as any
-                      handleImageUpload(event)
-                    }
-                  }}
-                  onPaste={handlePaste}
-                  tabIndex={0}
-                >
-                  <div>点击选择文件、拖拽文件或粘贴图片到此处</div>
-                </div>
-                {inputImages.length > 0 && (
-                  <div className="imagesGrid">
-                    {inputImages.map((img, index) => (
-                      <div
-                        key={index}
-                        className={`imageItem ${draggedIndex === index ? 'dragging' : ''}`}
-                        draggable
-                        onDragStart={() => handleDragStart(index)}
-                        onDragOver={(e) => handleDragOver(e, index)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <img src={img.previewUrl} alt={img.fileName} />
-                        <div className="fileName">{img.fileName}</div>
-                        <button onClick={() => {
-                          setInputImages(prev => prev.filter((_, i) => i !== index))
-                          if (inputImages.length === 1 && fileInputRef.current) {
-                            fileInputRef.current.value = ''
-                          }
-                        }} className="removeBtn">✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid2">
-                <label className="field">
-                  <div className="label">宽高比</div>
-                  <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)}>
-                    {RATIOS.map((r) => (
-                      <option key={r.ratio} value={r.ratio}>
-                        {r.ratio}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field">
-                  <div className="label">分辨率档位 {resolutionText}</div>
-                  <select
-                    value={imageSize.label}
-                    onChange={(e) => setImageSize(SIZE_OPTIONS.find((s) => s.label === e.target.value) || SIZE_OPTIONS[0])}
-                  >
-                    {SIZE_OPTIONS.map((s) => (
-                      <option key={s.label} value={s.label}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="actions">
-                <GenerateButton
-                  onClick={onGenerate}
-                  disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !selectedWorkflow || inputImages.length === 0}
-                >
-                  {busy ? '生成中…' : '生成图片'}
-                </GenerateButton>
-              </div>
-
-              {error ? <div className="error">{error}</div> : null}
-            </section>
-
-            <section className="rightPanel">
-              <div className="cardTitle">结果预览</div>
-              {busy ? (
-                <div className="loadingContainer">
-                  <LoadingSpinner />
-                  <div>正在生成中...</div>
-                </div>
-              ) : imgUrl ? (
-                <div className="preview">
-                  <img src={imgUrl} alt="generated" onClick={() => setShowImageModal(true)} title="点击查看大图" />
-                  <div className="meta">
-                    <div>
-                      <span className="k">工作流：</span>
-                      <span className="v">{selectedWorkflow?.name || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="k">比例：</span>
-                      <span className="v">{aspectRatio}</span>
-                    </div>
-                    <div>
-                      <span className="k">分辨率：</span>
-                      <span className="v">{imageSize.imageSize ? ratioMeta.px[imageSize.imageSize] || '-' : '默认'}</span>
-                    </div>
-                    <div>
-                      <span className="k">生成用时：</span>
-                      <span className="v">
-                        {generationTime !== null
-                          ? `${Math.floor(generationTime / 60)}分${generationTime % 60}秒`
-                          : '-'}
-                      </span>
-                    </div>
-                    <div style={{marginTop: '12px'}}>
-                      <GenerateButton onClick={download}>下载图片</GenerateButton>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="empty">还没有生成图片</div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
+      {/* History Drawer */}
       {showHistoryDrawer && (
         <>
-          <div className="historyDrawerOverlay" onClick={() => setShowHistoryDrawer(false)} />
-          <div className="historyDrawer">
-            <div className="historyDrawerHeader">
-              <h2>历史记录</h2>
-              <button className="closeBtn" onClick={() => setShowHistoryDrawer(false)}>✕</button>
+          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setShowHistoryDrawer(false)} />
+          <div className="fixed inset-y-0 right-0 z-50 w-[600px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200/50 dark:border-white/10 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col transition-colors duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200/50 dark:border-white/10">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <History className="w-5 h-5 text-violet-500" />
+                历史记录
+              </h2>
+              <button onClick={() => setShowHistoryDrawer(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
             </div>
-            <div className="historyDrawerContent">
+            <div className="flex-1 overflow-y-auto p-6">
               <HistoryView onRegenerate={(item) => {
                 regenerateFromHistory(item)
                 setShowHistoryDrawer(false)
@@ -825,6 +922,19 @@ export default function App() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Image Modal */}
+      {showImageModal && imgUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setShowImageModal(false)}>
+          <button className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:scale-110" onClick={() => setShowImageModal(false)}>
+            <X className="w-6 h-6" />
+          </button>
+          <img src={imgUrl} alt="Full size" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2" onClick={(e) => e.stopPropagation()}>
+             <GenerateButton onClick={download}>下载原图</GenerateButton>
+          </div>
+        </div>
       )}
     </div>
   )
