@@ -12,6 +12,7 @@ export type GenerateImageRequest = {
     mimeType: string
     base64Data: string
   }>
+  maskData?: string
 }
 
 export type GeneratedImage = {
@@ -65,7 +66,7 @@ function extractInlineData(obj: unknown): GeneratedImage | null {
 export async function generateImage(req: GenerateImageRequest): Promise<GeneratedImage> {
   const url = joinUrl(req.apiBaseUrl, req.apiPath)
 
-  const parts: any[] = [{ text: req.prompt }]
+  const parts: any[] = []
   
   if (req.inputImages && req.inputImages.length > 0) {
     req.inputImages.forEach(img => {
@@ -77,6 +78,17 @@ export async function generateImage(req: GenerateImageRequest): Promise<Generate
       })
     })
   }
+
+  if (req.maskData) {
+    parts.push({
+      inline_data: {
+        mime_type: 'image/png',
+        data: req.maskData
+      }
+    })
+  }
+
+  parts.push({ text: req.prompt })
 
   const body: any = {
     contents: [

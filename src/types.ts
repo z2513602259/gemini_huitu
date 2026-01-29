@@ -2,7 +2,7 @@
 export type HistoryItem = {
   id: string                    // UUID
   timestamp: number             // 时间戳
-  mode: 'generate' | 'workflow' // 生成模式
+  mode: 'generate' | 'workflow' | 'inpainting' // 生成模式
   
   // 生成参数
   prompt: string                // 提示词

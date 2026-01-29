@@ -4,7 +4,7 @@
 零界设计 - Gemini 图片生成应用
 
 ## 项目描述
-基于 Gemini API 的图片生成 Web 应用，支持文生图和图生图两种模式，可部署到腾讯 EdgeOne 静态站点。
+基于 Gemini API 的图片生成 Web 应用，支持文生图、图生图以及局部重绘模式，可部署到腾讯 EdgeOne 静态站点。
 
 ## 核心功能
 - **现代化 UI 设计**
@@ -13,10 +13,11 @@
   - 响应式分栏布局
   - 平滑的动画和交互反馈
 
-- **双模式支持**
+- **三模式支持**
   - 生图模式：纯文本提示词生成图片（Text-to-Image）
   - 工作流模式：基于参考图片 + 提示词生成图片（Image-to-Image）
-  
+  - **局部重绘 (Inpainting)**：支持上传图片、绘制遮罩，并对指定区域进行重绘
+
 - **生成参数配置**
   - 10 种宽高比选项（1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9）
   - 4 种分辨率档位（默认、1K、2K、4K）
@@ -59,21 +60,22 @@
 ```
 gemini_huitu/
 ├── src/
-│   ├── App.tsx           # 主应用组件
-│   ├── api.ts            # API 调用封装
-│   ├── types.ts          # TypeScript 类型定义
-│   ├── historyDB.ts      # IndexedDB 历史记录管理
-│   ├── HistoryView.tsx   # 历史记录视图组件
-│   ├── GenerateButton.tsx # 生成按钮组件
-│   ├── LoadingSpinner.tsx # 加载动画组件
-│   ├── styles.css        # 全局样式
-│   └── main.tsx          # 应用入口
+│   ├── App.tsx             # 主应用组件 (核心逻辑)
+│   ├── api.ts              # API 调用封装
+│   ├── types.ts            # TypeScript 类型定义
+│   ├── historyDB.ts        # IndexedDB 历史记录管理
+│   ├── HistoryView.tsx     # 历史记录视图组件
+│   ├── ImageMaskEditor.tsx # 局部重绘编辑器 (Canvas)
+│   ├── GenerateButton.tsx  # 生成按钮组件
+│   ├── LoadingSpinner.tsx  # 加载动画组件
+│   ├── index.css           # 全局样式 & Tailwind
+│   └── main.tsx            # 应用入口
 ├── public/
-│   ├── config.js         # 运行时配置文件
-│   └── icon.svg          # 应用图标
-├── plans/                # 功能方案文档
-├── 文档/                 # API 文档
-└── 示例/                 # 代码示例
+│   ├── config.js           # 运行时配置文件
+│   └── icon.svg            # 应用图标
+├── plans/                  # 功能方案文档
+├── 文档/                   # API 文档
+└── 示例/                   # 代码示例
 ```
 
 ## 部署方式

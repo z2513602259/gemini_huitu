@@ -5,10 +5,12 @@ import { LoadingSpinner } from './LoadingSpinner'
 import { HistoryView } from './HistoryView'
 import { saveHistory, checkStorageLimit } from './historyDB'
 import type { HistoryItem } from './types'
+import { ImageMaskEditor, type MaskEditorHandle } from './ImageMaskEditor'
 import { 
   Settings, History, Image as ImageIcon, Sparkles, Workflow, 
   Upload, X, Download, ChevronDown, Eye, EyeOff, LayoutGrid,
-  Maximize2, Layers, Wand2, Ratio, Monitor, ImagePlus, Sun, Moon
+  Maximize2, Layers, Wand2, Ratio, Monitor, ImagePlus, Sun, Moon,
+  Brush
 } from 'lucide-react'
 
 type SizeOption = {
@@ -142,14 +144,17 @@ function readInitialConfig() {
   }
 }
 
-type AppMode = 'generate' | 'workflow'
+type AppMode = 'generate' | 'workflow' | 'inpainting'
 
 export default function App() {
   const initial = useMemo(() => readInitialConfig(), [])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<MaskEditorHandle>(null)
 
   const [mode, setMode] = useState<AppMode>('generate')
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowTemplate | null>(null)
+  const [hasEditorImage, setHasEditorImage] = useState(false)
+  const [pendingEditorImage, setPendingEditorImage] = useState<string | null>(null)
 
   const [apiBaseUrl, setApiBaseUrl] = useState(initial.apiBaseUrl)
   const [apiPath, setApiPath] = useState(initial.apiPath)
@@ -284,7 +289,41 @@ export default function App() {
     try {
       persistConfig()
       
-      const finalPrompt = mode === 'workflow' && selectedWorkflow ? selectedWorkflow.prompt : prompt
+      let finalPrompt = mode === 'workflow' && selectedWorkflow ? selectedWorkflow.prompt : prompt
+      
+      let finalInputImages = inputImages.map(img => ({
+        mimeType: img.mimeType,
+        base64Data: img.base64Data
+      }))
+
+      if (mode === 'inpainting' && editorRef.current) {
+        const original = editorRef.current.getOriginalData()
+        const mask = editorRef.current.getMaskData()
+        
+        if (original) {
+          finalInputImages = [{
+            mimeType: 'image/png',
+            base64Data: original
+          }]
+        }
+        
+        if (mask) {
+          // 增强 Prompt，明确指示模型进行 Inpainting
+          finalPrompt = `[Instruction]
+The first image provided is the original base image.
+The second image provided is a mask image (white pixels indicate the editing area, black pixels indicate the protected area).
+Please perform an inpainting task: keep the area corresponding to the black pixels in the mask EXACTLY the same as the original image, and only generate new content in the white pixel area based on the user's description.
+Do NOT regenerate the entire image. Do NOT change the style, lighting, or composition of the protected areas.
+
+[User Description]
+${prompt}`
+
+          finalInputImages.push({
+            mimeType: 'image/png',
+            base64Data: mask
+          })
+        }
+      }
       
       const img = await generateImage({
         apiBaseUrl,
@@ -294,10 +333,7 @@ export default function App() {
         prompt: finalPrompt,
         aspectRatio,
         imageSize: imageSize.imageSize,
-        inputImages: inputImages.length > 0 ? inputImages.map(img => ({
-          mimeType: img.mimeType,
-          base64Data: img.base64Data
-        })) : undefined
+        inputImages: finalInputImages.length > 0 ? finalInputImages : undefined
       })
 
       const url = `data:${img.mimeType};base64,${img.base64Data}`
@@ -345,6 +381,19 @@ export default function App() {
     a.click()
     a.remove()
   }
+
+  function handleLayoutEdit() {
+    if (!imgUrl) return
+    setPendingEditorImage(imgUrl)
+    setMode('inpainting')
+  }
+
+  useEffect(() => {
+    if (mode === 'inpainting' && editorRef.current && pendingEditorImage) {
+      editorRef.current.setImage(pendingEditorImage)
+      setPendingEditorImage(null)
+    }
+  }, [mode, pendingEditorImage])
 
   function handleDragStart(index: number) {
     setDraggedIndex(index)
@@ -456,6 +505,17 @@ export default function App() {
               <Workflow className="w-4 h-4" />
               工作流模式
             </button>
+            <button
+              onClick={() => setMode('inpainting')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === 'inpainting' 
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'
+              }`}
+            >
+              <Brush className="w-4 h-4" />
+              局部编辑
+            </button>
           </nav>
         </div>
 
@@ -486,7 +546,7 @@ export default function App() {
       {/* Main Content */}
       <main className="flex flex-1 overflow-hidden">
         {/* Left Panel - Controls */}
-        <aside className="w-[400px] flex flex-col gap-6 border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-slate-900/20 p-6 overflow-y-auto backdrop-blur-sm z-10 custom-scrollbar transition-colors duration-300">
+        <aside className={`${mode === 'inpainting' ? 'w-[500px]' : 'w-[400px]'} flex flex-col gap-6 border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-slate-900/20 p-6 overflow-y-auto backdrop-blur-sm z-10 custom-scrollbar transition-all duration-300`}>
           {mode === 'generate' ? (
             <>
               <div>
@@ -615,7 +675,7 @@ export default function App() {
                 )}
               </div>
             </>
-          ) : (
+          ) : mode === 'workflow' ? (
             <>
               <div>
                 <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -746,6 +806,47 @@ export default function App() {
                 )}
               </div>
             </>
+          ) : (
+            // Inpainting Mode
+            <>
+              <div className="flex-1 min-h-[530px]">
+                 <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <Brush className="w-3.5 h-3.5" />
+                  绘图区域
+                </div>
+                <div className="h-[530px] w-full">
+                  <ImageMaskEditor ref={editorRef} onImageChange={setHasEditorImage} />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <Wand2 className="w-3.5 h-3.5" />
+                  提示词
+                </div>
+                <textarea 
+                  value={prompt} 
+                  onChange={(e) => setPrompt(e.target.value)} 
+                  rows={4} 
+                  placeholder="描述要对选中区域进行的修改..." 
+                  className="glass-input w-full resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-slate-200/50 dark:border-white/5">
+                <GenerateButton
+                  onClick={onGenerate}
+                  disabled={busy || !apiBaseUrl || !apiPath || !apiKey || !prompt || !hasEditorImage}
+                >
+                  {busy ? '生成中...' : '开始生成'}
+                </GenerateButton>
+                {error && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </aside>
 
@@ -786,6 +887,14 @@ export default function App() {
                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">耗时</span>
                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{generationTime ? `${generationTime}s` : '-'}</span>
                  </div>
+                 <div className="w-px h-8 bg-slate-200 dark:bg-white/10"></div>
+                 <button 
+                   onClick={handleLayoutEdit}
+                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 rounded-xl text-sm font-medium transition-colors text-slate-700 dark:text-white"
+                 >
+                   <Brush className="w-4 h-4" />
+                   布局编辑
+                 </button>
                  <div className="w-px h-8 bg-slate-200 dark:bg-white/10"></div>
                  <button 
                    onClick={download}

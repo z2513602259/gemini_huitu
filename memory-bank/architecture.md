@@ -8,19 +8,19 @@
 │         React 前端应用                    │
 │  ┌─────────────────────────────────┐    │
 │  │      App.tsx (主组件)            │    │
-│  │  ┌──────────┐    ┌──────────┐   │    │
-│  │  │生图模式   │    │工作流模式 │   │    │
-│  │  └──────────┘    └──────────┘   │    │
-│  └─────────────────────────────────┘    │
-│           │              │               │
-│           ▼              ▼               │
+│  │  ┌──────┐ ┌──────┐ ┌────────┐   │    │
+│  │  │生图   │ │工作流 │ │局部重绘  │   │    │
+│  │  └──────┘ └──────┘ └────────┘   │    │
+│  │                      │          │    │
+│  │                 ImageMaskEditor │    │
+│  └──────────────────────┬──────────┘    │
+│           │             │               │
+│           ▼             ▼               │
 │  ┌─────────────────────────────────┐    │
 │  │      api.ts (API 封装)           │    │
 │  └─────────────────────────────────┘    │
 │           │                              │
-└───────────┼──────────────────────────────┘
-            │
-            ▼
+│           ▼                              │
 ┌─────────────────────────────────────────┐
 │      Gemini API (外部服务)               │
 │  POST /v1beta/models/...:generateContent │
@@ -38,205 +38,124 @@
 ### 1. 主应用组件 (App.tsx)
 **职责**：
 - 应用状态管理
-- 模式切换逻辑
+- 模式切换逻辑 ('generate' | 'workflow' | 'inpainting')
 - UI 布局和交互
+- 协调各个子组件
 
 **关键状态**：
-- `mode`: 'generate' | 'workflow' - 当前模式
+- `mode`: 当前模式
 - `selectedWorkflow`: 选中的工作流模板
 - `inputImages`: 上传的参考图片数组
 - `prompt`: 用户输入的提示词
-- `aspectRatio`: 宽高比
-- `imageSize`: 分辨率档位
-- `imgUrl`: 生成的图片 URL
-- `busy`: 生成中状态
+- `hasEditorImage`: 编辑器中是否有图片
+- `pendingEditorImage`: 等待编辑的图片（用于从结果跳转编辑）
+- `editorRef`: 引用 MaskEditor 实例以获取数据
 
 **核心函数**：
-- `onGenerate()`: 触发图片生成
-- `handleImageUpload()`: 处理图片上传
-- `handleDragStart/Over/End()`: 图片拖拽排序
-- `regenerateFromHistory()`: 从历史记录恢复参数
+- `onGenerate()`: 触发图片生成（包含 Inpainting 逻辑分支）
+- `handleLayoutEdit()`: 将生成的图片发送到局部编辑模式
+- `handlePaste()`: 全局粘贴处理
 
-### 2. API 模块 (api.ts)
+### 2. 局部重绘编辑器 (ImageMaskEditor.tsx)
+**职责**：
+- 提供图片上传和显示
+- 提供绘图工具（画笔、矩形、橡皮擦）
+- 生成遮罩数据（Mask）
+- 历史记录管理（撤销/重做）
+
+**关键技术**：
+- **双 Canvas 架构**：底层显示原图，顶层 Canvas 用于绘制遮罩。
+- **坐标转换**：处理鼠标/触摸事件坐标到 Canvas 内部坐标的转换，支持缩放。
+- **遮罩导出**：将绘制的半透明遮罩转换为 API 需要的黑底白形遮罩图。
+- **交互**：支持中键拖拽平移画布，Ctrl+滚轮缩放。
+
+### 3. API 模块 (api.ts)
 **职责**：
 - 封装 Gemini API 调用
-- 处理请求和响应
-- 错误处理
+- 构造请求体（包含 Inpainting 所需的 Prompt 增强和遮罩数据）
 
-**核心函数**：
-- `generateImage()`: 发送生成请求
-  - 参数：配置、提示词、宽高比、分辨率、参考图片
-  - 返回：生成的图片数据（mimeType + base64Data）
-
-**API 请求结构**：
+**API 请求结构扩展 (Inpainting)**：
 ```typescript
 {
   contents: [{
     parts: [
-      { text: prompt },
-      ...inputImages.map(img => ({
-        inline_data: {
-          mime_type: img.mimeType,
-          data: img.base64Data
-        }
-      }))
+      { text: enhanced_prompt }, // 包含 [Instruction] 的增强提示词
+      { inline_data: { mime_type: 'image/png', data: original_base64 } },
+      { inline_data: { mime_type: 'image/png', data: mask_base64 } }
     ]
-  }],
-  generationConfig: {
-    imageConfig: {
-      aspectRatio: string,
-      imageSize?: '1K' | '2K' | '4K'
-    }
-  }
+  }]
 }
 ```
 
-### 3. 历史记录模块 (historyDB.ts)
+### 4. 历史记录模块 (historyDB.ts)
 **职责**：
 - IndexedDB 数据库管理
-- 历史记录 CRUD 操作
-- 存储限制管理
+- 存储限制管理 (Max 100)
 
-**核心函数**：
-- `initDB()`: 初始化数据库
-- `saveHistory()`: 保存历史记录
-- `getAllHistory()`: 获取所有历史记录
-- `deleteHistory()`: 删除指定记录
-- `checkStorageLimit()`: 检查并清理超出限制的记录
-
-**数据结构**：
-```typescript
-interface HistoryItem {
-  id: string
-  timestamp: number
-  mode: 'generate' | 'workflow'
-  prompt: string
-  aspectRatio: string
-  imageSize?: '1K' | '2K' | '4K'
-  workflowId?: string
-  workflowName?: string
-  imageData: string
-  mimeType: string
-  inputImages?: Array<{
-    mimeType: string
-    base64Data: string
-  }>
-  generationTime: number
-}
-```
-
-### 4. UI 组件
-
-#### Design System (New)
-- **Styling**: Tailwind CSS
-- **Theming**: Dark Mode + Glassmorphism
-- **Icons**: Lucide React
-
-#### HistoryView.tsx
-- 历史记录列表展示
-- 支持删除和重新生成操作
-
-#### GenerateButton.tsx
-- 统一的生成按钮组件
-- 支持禁用状态
-
-#### LoadingSpinner.tsx
-- 加载动画组件
-
-#### index.css
-- Tailwind 指令
-- 自定义 Glassmorphism 工具类 (.glass-panel, .glass-card, .glass-input)
-- 全局动画定义
+### 5. UI 组件
+- **GenerateButton**: 统一生成按钮
+- **LoadingSpinner**: 加载动画
+- **HistoryView**: 历史记录列表
+- **Design System**: 基于 Tailwind CSS + Glassmorphism 的统一视觉风格
 
 ## 数据流
 
-### 图片生成流程
+### 局部重绘 (Inpainting) 流程
 ```
-用户输入参数
+用户上传/选择图片
     ↓
-点击生成按钮
+ImageMaskEditor 显示图片
     ↓
-onGenerate() 调用
+用户使用工具绘制遮罩
     ↓
-persistConfig() 保存配置
+点击生成
     ↓
-generateImage() API 调用
+App.tsx 获取原图和遮罩数据 (via ref)
     ↓
-接收 Base64 图片数据
+App.tsx 构造增强 Prompt (Instruction + User Prompt)
     ↓
-更新 UI 显示结果
+api.ts 发送请求 (原图 + 遮罩 + Prompt)
     ↓
-saveHistory() 保存到 IndexedDB
+Gemini API 返回重绘后的图片
     ↓
-checkStorageLimit() 清理旧记录
+UI 显示结果
 ```
 
-### 配置管理流程
+### 从结果跳转编辑
 ```
-应用启动
+生成结果显示
     ↓
-readInitialConfig()
-    ├─ 读取 window.__APP_CONFIG__ (config.js)
-    └─ 读取 localStorage
+点击 "布局编辑"
     ↓
-合并配置（localStorage 优先）
+setPendingEditorImage(url)
+setMode('inpainting')
     ↓
-初始化状态
+useEffect 监测到 mode 变化
     ↓
-用户修改配置
+editorRef.current.setImage(url)
     ↓
-persistConfig() 保存到 localStorage
+用户开始在生成图上绘制
 ```
 
 ## 关键设计决策
 
-### 1. 状态管理
-- **决策**：使用 React useState 进行本地状态管理
-- **原因**：应用规模较小，不需要复杂的状态管理库
-- **权衡**：如果应用扩展，可能需要引入 Context 或状态管理库
+### 1. Inpainting 实现方式
+- **决策**：前端使用 Canvas 生成遮罩，通过 API 发送原图+遮罩+提示词。
+- **原因**：Gemini API 支持多模态输入，通过 Prompt 指导模型进行 Inpainting 是目前最灵活的方式。
+- **Prompt 策略**：在前端硬编码一段 `[Instruction]`，明确告诉模型黑色区域保持不变，白色区域重绘。
 
-### 2. 数据持久化
-- **决策**：使用 IndexedDB 存储历史记录
-- **原因**：支持存储大量 Base64 图片数据，localStorage 容量有限
-- **权衡**：IndexedDB API 较复杂，但提供更好的性能和容量
+### 2. Canvas 交互
+- **决策**：实现缩放和平移功能。
+- **原因**：为了精细编辑，用户需要放大图片。
+- **实现**：通过 CSS `transform` 或 `width/height` 控制显示尺寸，Canvas 内部分辨率保持与原图一致（或适应容器），计算坐标时进行逆变换。
 
-### 3. 图片处理
-- **决策**：使用 Base64 编码传输和存储图片
-- **原因**：Gemini API 要求 Base64 格式，简化处理流程
-- **权衡**：Base64 增加约 33% 数据量，但避免了文件上传的复杂性
-
-### 4. 配置管理
-- **决策**：支持运行时配置（config.js）+ 本地存储
-- **原因**：部署后可修改配置无需重新构建，提高灵活性
-- **权衡**：API Key 暴露在前端，安全性较低
-
-### 5. 工作流模板
-- **决策**：硬编码模板列表在前端
-- **原因**：模板数量有限，无需后端管理
-- **权衡**：添加新模板需要重新部署，但简化了架构
+### 3. 状态管理
+- **决策**：`ImageMaskEditor` 内部维护绘图历史栈，外部只关心最终导出的数据。
+- **原因**：解耦编辑器的内部逻辑和应用业务逻辑。`App.tsx` 不需要知道用户画了多少笔，只需要在生成时获取当前的 Mask。
 
 ## 性能考虑
-
-### 优化点
-1. **图片预览**：使用 `createObjectURL` 生成预览 URL
-2. **拖拽排序**：仅在拖拽结束时更新状态
-3. **历史记录限制**：自动清理超过 100 条的旧记录
-4. **懒加载**：历史记录抽屉按需加载
-
-### 潜在瓶颈
-1. **大图片处理**：4K 图片的 Base64 编码可能较慢
-2. **IndexedDB 查询**：大量历史记录时查询性能下降
-3. **内存占用**：多张大图片同时加载可能占用大量内存
+- **Canvas 性能**：使用 `will-change` 优化合成层；导出大图遮罩时使用离屏 Canvas。
+- **内存管理**：Inpainting 涉及原图、遮罩、历史记录多份数据，注意及时释放（虽然 JS 有 GC，但 Canvas 占用显存/内存较大）。
 
 ## 安全考虑
-
-### 当前实现
-- API Key 存储在 localStorage（明文）
-- API Key 在前端代码中可见
-- 无服务端验证
-
-### 改进建议
-1. 使用 EdgeOne 边缘函数转发 API 请求
-2. 在服务端保管 API Key
-3. 实现请求频率限制
-4. 添加用户认证机制
+- 同前（API Key 暴露问题）。
